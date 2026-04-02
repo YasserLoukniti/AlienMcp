@@ -20,11 +20,12 @@ import { registerHoverTool } from './tools/hover.js';
 import { registerCookiesTool } from './tools/cookies.js';
 import { registerStorageTool } from './tools/storage.js';
 import { registerPdfTool } from './tools/pdf.js';
+import { registerEmulateTool } from './tools/emulate.js';
 
 export function createServer(bridge: Bridge): McpServer {
   const server = new McpServer({
     name: 'alien-mcp',
-    version: '1.0.0',
+    version: '1.1.0',
   });
 
   registerScreenshotTool(server, bridge);
@@ -46,6 +47,7 @@ export function createServer(bridge: Bridge): McpServer {
   registerCookiesTool(server, bridge);
   registerStorageTool(server, bridge);
   registerPdfTool(server, bridge);
+  registerEmulateTool(server, bridge);
 
   return server;
 }

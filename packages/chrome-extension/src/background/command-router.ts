@@ -17,6 +17,7 @@ import { handleHover } from './handlers/hover';
 import { handleCookies } from './handlers/cookies';
 import { handleStorage } from './handlers/storage';
 import { handlePdf } from './handlers/pdf';
+import { handleEmulate } from './handlers/emulate';
 
 type CommandHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
@@ -43,6 +44,7 @@ export class CommandRouter {
     this.handlers.set('cookies', handleCookies);
     this.handlers.set('storage', handleStorage);
     this.handlers.set('pdf', handlePdf);
+    this.handlers.set('emulate', handleEmulate);
   }
 
   async route(command: string, args: Record<string, unknown>): Promise<unknown> {
