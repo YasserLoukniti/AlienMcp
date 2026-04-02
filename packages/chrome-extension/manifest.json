@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AlienMcp - Browser Automation for AI",
   "version": "1.1.0",
-  "description": "Connect AI agents to your browser. Screenshot, navigate, click, execute JS, read pages, fill forms, watch network - all via MCP protocol.",
+  "description": "Connect AI agents to your browser. Screenshot, click, type, scroll, read pages, fill forms, watch network via MCP.",
   "permissions": [
     "activeTab",
     "tabs",
