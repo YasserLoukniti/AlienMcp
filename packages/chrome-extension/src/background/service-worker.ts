@@ -1,19 +1,17 @@
-import { WebSocketClient } from './websocket-client';
+import { MultiWebSocketClient } from './websocket-client';
 import { CommandRouter } from './command-router';
 
-const WS_URL = 'ws://localhost:7888';
-
 const router = new CommandRouter();
-let wsClient: WebSocketClient | null = null;
+let wsClient: MultiWebSocketClient | null = null;
 let initialized = false;
 
 function initialize(): void {
   if (initialized && wsClient) return;
   initialized = true;
 
-  wsClient = new WebSocketClient(WS_URL);
+  wsClient = new MultiWebSocketClient();
 
-  wsClient.onMessage(async (message) => {
+  wsClient.onMessage(async (message, port) => {
     let requestId: string | undefined;
     try {
       const request = JSON.parse(message);
@@ -26,14 +24,14 @@ function initialize(): void {
         id: requestId,
         data: result,
         error: null,
-      }));
+      }), port);
     } catch (err) {
       if (requestId) {
         wsClient!.send(JSON.stringify({
           id: requestId,
           data: null,
           error: err instanceof Error ? err.message : 'Unknown error',
-        }));
+        }), port);
       }
     }
   });
@@ -42,7 +40,7 @@ function initialize(): void {
 
   // Keep service worker alive with alarms
   chrome.alarms.create('heartbeat', { periodInMinutes: 0.5 });
-  console.log('AlienMcp initialized, connecting to', WS_URL);
+  console.log('AlienMcp initialized, scanning ports 7888-7899');
 }
 
 // Handle alarms for keepalive
@@ -51,16 +49,22 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     if (!wsClient) {
       initialize();
     } else if (wsClient.isConnected()) {
-      wsClient.send(JSON.stringify({ type: 'ping' }));
+      // Send ping to all connected servers
+      for (const port of wsClient.getConnectedPorts()) {
+        wsClient.send(JSON.stringify({ type: 'ping' }), port);
+      }
     }
-    // If not connected, the WebSocketClient handles reconnection internally
   }
 });
 
 // Handle messages from popup
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message.action === 'getStatus') {
-    sendResponse({ connected: wsClient?.isConnected() ?? false });
+    sendResponse({
+      connected: wsClient?.isConnected() ?? false,
+      sessionCount: wsClient?.connectedCount() ?? 0,
+      ports: wsClient?.getConnectedPorts() ?? [],
+    });
   } else if (message.action === 'reconnect') {
     if (wsClient) {
       wsClient.disconnect();
@@ -69,8 +73,12 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     wsClient = null;
     initialize();
     setTimeout(() => {
-      sendResponse({ connected: wsClient?.isConnected() ?? false });
-    }, 2000);
+      sendResponse({
+        connected: wsClient?.isConnected() ?? false,
+        sessionCount: wsClient?.connectedCount() ?? 0,
+        ports: wsClient?.getConnectedPorts() ?? [],
+      });
+    }, 4000);
     return true; // Async response
   }
 });

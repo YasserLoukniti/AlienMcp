@@ -1,56 +1,78 @@
-type MessageHandler = (message: string) => void;
+type MessageHandler = (message: string, port: number) => void;
 
-export class WebSocketClient {
-  private ws: WebSocket | null = null;
-  private url: string;
+const BASE_PORT = 7888;
+const MAX_PORT = 7899;
+const SCAN_INTERVAL = 3000;
+
+interface Connection {
+  ws: WebSocket;
+  port: number;
+  connected: boolean;
+}
+
+export class MultiWebSocketClient {
+  private connections = new Map<number, Connection>();
   private handlers: MessageHandler[] = [];
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 20;
-  private _connected = false;
+  private scanTimer: ReturnType<typeof setInterval> | null = null;
   private _intentionalClose = false;
-
-  constructor(url: string) {
-    this.url = url;
-  }
 
   connect(): void {
     this._intentionalClose = false;
-    try {
-      this.ws = new WebSocket(this.url);
+    this.scanPorts();
+    this.scanTimer = setInterval(() => this.scanPorts(), SCAN_INTERVAL);
+  }
 
-      this.ws.onopen = () => {
-        this._connected = true;
-        this.reconnectAttempts = 0;
-        console.log(`AlienMcp: Connected to ${this.url}`);
-      };
-
-      this.ws.onmessage = (event) => {
-        const data = typeof event.data === 'string' ? event.data : '';
-        for (const handler of this.handlers) {
-          handler(data);
-        }
-      };
-
-      this.ws.onclose = () => {
-        this._connected = false;
-        console.log('AlienMcp: Disconnected');
-        if (!this._intentionalClose) {
-          this.attemptReconnect();
-        }
-      };
-
-      this.ws.onerror = (err) => {
-        console.error('AlienMcp: WebSocket error', err);
-      };
-    } catch (err) {
-      console.error('AlienMcp: Failed to connect', err);
-      this.attemptReconnect();
+  private scanPorts(): void {
+    for (let port = BASE_PORT; port <= MAX_PORT; port++) {
+      if (this.connections.has(port)) continue;
+      this.tryConnect(port);
     }
   }
 
-  send(message: string): void {
-    if (this.ws && this._connected) {
-      this.ws.send(message);
+  private tryConnect(port: number): void {
+    try {
+      const ws = new WebSocket(`ws://localhost:${port}`);
+
+      // Fast timeout for port scanning
+      const connectTimeout = setTimeout(() => {
+        ws.close();
+      }, 2000);
+
+      ws.onopen = () => {
+        clearTimeout(connectTimeout);
+        const conn: Connection = { ws, port, connected: true };
+        this.connections.set(port, conn);
+        console.log(`AlienMcp: Connected to port ${port} (${this.connectedCount()} sessions)`);
+      };
+
+      ws.onmessage = (event) => {
+        const data = typeof event.data === 'string' ? event.data : '';
+        for (const handler of this.handlers) {
+          handler(data, port);
+        }
+      };
+
+      ws.onclose = () => {
+        clearTimeout(connectTimeout);
+        if (this.connections.has(port)) {
+          console.log(`AlienMcp: Disconnected from port ${port}`);
+          this.connections.delete(port);
+        }
+      };
+
+      ws.onerror = () => {
+        clearTimeout(connectTimeout);
+        // Silently ignore — port is not active
+      };
+    } catch {
+      // Ignore connection errors during scanning
+    }
+  }
+
+  send(message: string, port: number): void {
+    const conn = this.connections.get(port);
+    if (conn?.connected) {
+      conn.ws.send(message);
     }
   }
 
@@ -59,28 +81,26 @@ export class WebSocketClient {
   }
 
   isConnected(): boolean {
-    return this._connected;
+    return this.connectedCount() > 0;
+  }
+
+  connectedCount(): number {
+    return this.connections.size;
+  }
+
+  getConnectedPorts(): number[] {
+    return Array.from(this.connections.keys());
   }
 
   disconnect(): void {
     this._intentionalClose = true;
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
-      this._connected = false;
+    if (this.scanTimer) {
+      clearInterval(this.scanTimer);
+      this.scanTimer = null;
     }
-  }
-
-  private attemptReconnect(): void {
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.error('AlienMcp: Max reconnect attempts reached');
-      return;
+    for (const [, conn] of this.connections) {
+      conn.ws.close();
     }
-
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
-    this.reconnectAttempts++;
-
-    console.log(`AlienMcp: Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
-    setTimeout(() => this.connect(), delay);
+    this.connections.clear();
   }
 }

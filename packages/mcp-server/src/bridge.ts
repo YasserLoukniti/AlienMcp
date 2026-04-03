@@ -1,5 +1,9 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { v4 as uuidv4 } from 'uuid';
+import { createServer, type Server } from 'net';
+
+export const BASE_PORT = 7888;
+export const MAX_PORT = 7899;
 
 export interface BridgeRequest {
   id: string;
@@ -19,25 +23,44 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
+async function findFreePort(base: number, max: number): Promise<number> {
+  for (let port = base; port <= max; port++) {
+    const free = await new Promise<boolean>((resolve) => {
+      const srv: Server = createServer();
+      srv.once('error', () => resolve(false));
+      srv.once('listening', () => {
+        srv.close(() => resolve(true));
+      });
+      srv.listen(port);
+    });
+    if (free) return port;
+  }
+  throw new Error(`No free port found in range ${base}-${max}`);
+}
+
 export class Bridge {
   private wss: WebSocketServer | null = null;
   private client: WebSocket | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
   private port: number;
+  private actualPort: number | null = null;
   private timeout: number;
   private _connected = false;
 
-  constructor(port = 7888, timeout = 30000) {
+  constructor(port = BASE_PORT, timeout = 30000) {
     this.port = port;
     this.timeout = timeout;
   }
 
   async start(): Promise<void> {
+    this.actualPort = await findFreePort(this.port, MAX_PORT);
+    console.error(`Found free port: ${this.actualPort}`);
+
     return new Promise((resolve, reject) => {
-      this.wss = new WebSocketServer({ port: this.port });
+      this.wss = new WebSocketServer({ port: this.actualPort! });
 
       this.wss.on('listening', () => {
-        console.error(`Bridge WebSocket server listening on ws://localhost:${this.port}`);
+        console.error(`Bridge WebSocket server listening on ws://localhost:${this.actualPort}`);
         resolve();
       });
 
@@ -83,6 +106,10 @@ export class Bridge {
         });
       });
     });
+  }
+
+  getPort(): number | null {
+    return this.actualPort;
   }
 
   async send(command: string, args: Record<string, unknown> = {}): Promise<unknown> {

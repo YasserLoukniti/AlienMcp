@@ -11,9 +11,15 @@ const GROUP_COLOR: chrome.tabGroups.ColorEnum = 'green';
 let alienGroupId: number | null = null;
 let groupTabIds: Set<number> = new Set();
 
-function updateStatus(connected: boolean): void {
+function updateStatus(connected: boolean, sessionCount = 0, ports: number[] = []): void {
   statusDot.className = `status-dot ${connected ? 'connected' : 'disconnected'}`;
-  statusText.textContent = connected ? 'Connected' : 'Disconnected';
+  if (connected) {
+    statusText.textContent = sessionCount === 1
+      ? `Connected (1 session, port ${ports[0]})`
+      : `Connected (${sessionCount} sessions, ports ${ports.join(', ')})`;
+  } else {
+    statusText.textContent = 'Disconnected';
+  }
 }
 
 // Find or create the AlienMcp tab group
@@ -131,13 +137,13 @@ function truncate(str: string, max: number): string {
 // Status check
 chrome.runtime.sendMessage({ action: 'getStatus' }, (response) => {
   if (chrome.runtime.lastError) { updateStatus(false); return; }
-  updateStatus(response?.connected ?? false);
+  updateStatus(response?.connected ?? false, response?.sessionCount ?? 0, response?.ports ?? []);
 });
 
 reconnectBtn.addEventListener('click', () => {
   chrome.runtime.sendMessage({ action: 'reconnect' }, (response) => {
     if (chrome.runtime.lastError) { updateStatus(false); return; }
-    updateStatus(response?.connected ?? false);
+    updateStatus(response?.connected ?? false, response?.sessionCount ?? 0, response?.ports ?? []);
   });
 });
 
