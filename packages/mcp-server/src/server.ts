@@ -52,17 +52,29 @@ export function createServer(bridge: Bridge): McpServer {
   return server;
 }
 
-export async function startServer(): Promise<void> {
+export interface StartServerOptions {
+  transport?: 'stdio' | 'http';
+  httpPort?: number;
+  httpHost?: string;
+}
+
+export async function startServer(options: StartServerOptions = {}): Promise<void> {
+  const { transport: transportKind = 'stdio', httpPort = 7890, httpHost = '127.0.0.1' } = options;
+
   const bridge = new Bridge();
   await bridge.start();
 
   console.error(`Waiting for Chrome extension to connect on port ${bridge.getPort()}...`);
 
-  const server = createServer(bridge);
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-
-  console.error('AlienMcp server running on stdio');
+  if (transportKind === 'http') {
+    const { startHttpTransport } = await import('./http-transport.js');
+    await startHttpTransport(bridge, { port: httpPort, host: httpHost });
+  } else {
+    const server = createServer(bridge);
+    const transport = new StdioServerTransport();
+    await server.connect(transport);
+    console.error('AlienMcp server running on stdio');
+  }
 
   // Clean shutdown
   const cleanup = () => {
