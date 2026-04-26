@@ -8,7 +8,7 @@ export async function handleReadPage(args: Record<string, unknown>): Promise<{
   const mode = (args.mode as 'html' | 'text' | 'selection') || 'text';
   const selector = args.selector as string | undefined;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },

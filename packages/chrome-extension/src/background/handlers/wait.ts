@@ -5,7 +5,7 @@ export async function handleWait(args: Record<string, unknown>): Promise<{
   elapsed: number;
   element?: { tag: string; text: string };
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const selector = args.selector as string | undefined;
   const text = args.text as string | undefined;
   const timeout = (args.timeout as number) || 10000;

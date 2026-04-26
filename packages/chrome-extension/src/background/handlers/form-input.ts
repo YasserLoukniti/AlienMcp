@@ -11,7 +11,7 @@ export async function handleFormInput(args: Record<string, unknown>): Promise<{
   if (!selector) throw new Error('Selector is required');
   if (value === undefined) throw new Error('Value is required');
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },

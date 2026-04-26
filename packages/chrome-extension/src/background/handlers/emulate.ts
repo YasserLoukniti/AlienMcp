@@ -5,7 +5,7 @@ export async function handleEmulate(args: Record<string, unknown>): Promise<{
   success: boolean;
   active: string[];
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const active: string[] = [];
 
   await dbg.acquire(tabId);

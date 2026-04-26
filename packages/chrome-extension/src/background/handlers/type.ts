@@ -11,7 +11,7 @@ export async function handleType(args: Record<string, unknown>): Promise<{
 
   if (!text) throw new Error('Text is required');
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   if (selector) {
     await chrome.scripting.executeScript({

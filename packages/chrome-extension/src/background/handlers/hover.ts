@@ -5,7 +5,7 @@ export async function handleHover(args: Record<string, unknown>): Promise<{
   success: boolean;
   element?: { tag: string; text: string; rect: { x: number; y: number; width: number; height: number } };
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const selector = args.selector as string | undefined;
   const x = args.x as number | undefined;
   const y = args.y as number | undefined;

@@ -8,7 +8,7 @@ export async function handleScreenshot(args: Record<string, unknown>): Promise<{
   url: string;
   title: string;
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const format = (args.format as 'png' | 'jpeg') || 'png';
   const quality = (args.quality as number) || 100;
   const fullPage = args.fullPage as boolean;

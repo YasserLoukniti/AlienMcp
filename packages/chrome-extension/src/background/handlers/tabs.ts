@@ -8,11 +8,10 @@ export async function handleTabs(args: Record<string, unknown>): Promise<{
 
   switch (action) {
     case 'list': {
-      const groupTabs = await getGroupTabs();
-      const groupId = await getGroupId();
+      const groupTabs = await getGroupTabs(args);
+      const groupId = await getGroupId(args);
 
       if (groupTabs.length > 0) {
-        // Only show group tabs
         return {
           tabs: groupTabs.map((t) => ({
             id: t.id!,
@@ -24,7 +23,6 @@ export async function handleTabs(args: Record<string, unknown>): Promise<{
         };
       }
 
-      // No group yet - show all tabs
       const allTabs = await chrome.tabs.query({});
       return {
         tabs: allTabs.map((t) => ({
@@ -39,11 +37,14 @@ export async function handleTabs(args: Record<string, unknown>): Promise<{
 
     case 'create': {
       const url = args.url as string | undefined;
-      const tab = await chrome.tabs.create({ url, active: true });
+      // Respect caller's `active` preference; default to foreground (true) to
+      // preserve existing behaviour, but allow `false` for headless flows that
+      // don't want to steal the user's focus.
+      const active = typeof args.active === 'boolean' ? args.active : true;
+      const tab = await chrome.tabs.create({ url, active });
 
-      // Auto-add new tabs to the group
       if (tab.id) {
-        await addToGroup(tab.id);
+        await addToGroup(tab.id, args);
       }
 
       return {

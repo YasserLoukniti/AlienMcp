@@ -6,7 +6,7 @@ export async function handleScroll(args: Record<string, unknown>): Promise<{
   scrollY: number;
   pageHeight: number;
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const direction = (args.direction as 'up' | 'down' | 'left' | 'right' | 'top' | 'bottom') || 'down';
   const amount = (args.amount as number) || 500;
   const selector = args.selector as string | undefined;

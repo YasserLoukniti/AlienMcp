@@ -8,7 +8,7 @@ export async function handleExecuteJs(args: Record<string, unknown>): Promise<{
   const code = args.code as string;
   if (!code) throw new Error('Code is required');
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   await dbg.acquire(tabId);
 

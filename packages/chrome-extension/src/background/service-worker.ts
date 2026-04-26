@@ -1,5 +1,7 @@
 import { MultiWebSocketClient } from './websocket-client';
 import { CommandRouter } from './command-router';
+import * as sessionState from './session-state';
+import { renameGroup } from './handlers/group-utils';
 
 const router = new CommandRouter();
 let wsClient: MultiWebSocketClient | null = null;
@@ -15,11 +17,32 @@ function initialize(): void {
     let requestId: string | undefined;
     try {
       const request = JSON.parse(message);
+
+      if (request.type === 'hello' && typeof request.sessionId === 'string') {
+        const label = typeof request.label === 'string' ? request.label : request.sessionId.slice(0, 8);
+        sessionState.setHello(port, request.sessionId, label);
+        console.log(`AlienMcp: server hello on port ${port}, session=${label}`);
+        return;
+      }
+
+      if (request.type === 'relabel' && typeof request.sessionId === 'string' && typeof request.label === 'string') {
+        const info = sessionState.setLabel(request.sessionId, request.label);
+        if (info) {
+          await renameGroup(info).catch((err) => console.warn('rename group failed', err));
+        }
+        return;
+      }
+
       requestId = request.id;
+      if (!request.command) return;
 
-      if (!request.command) return; // Ignore non-command messages
+      const session = sessionState.getByPort(port);
+      const enrichedArgs = {
+        ...(request.args || {}),
+        __sessionId: session?.sessionId,
+      } as Record<string, unknown>;
 
-      const result = await router.route(request.command, request.args || {});
+      const result = await router.route(request.command, enrichedArgs);
       wsClient!.send(JSON.stringify({
         id: requestId,
         data: result,
@@ -38,22 +61,28 @@ function initialize(): void {
 
   wsClient.connect();
 
-  // Keep service worker alive with alarms
-  chrome.alarms.create('heartbeat', { periodInMinutes: 0.5 });
+  // Keep service worker alive and force periodic port scans.
+  // ~10s interval (0.166 min) so a newly-started MCP server is picked up
+  // quickly. MV3 accepts sub-minute periods in unpacked / dev mode.
+  chrome.alarms.create('heartbeat', { periodInMinutes: 10 / 60 });
   console.log('AlienMcp initialized, scanning ports 7888-7899');
 }
 
-// Handle alarms for keepalive
+// Handle alarms for keepalive + port discovery.
+// The setInterval-based scan in MultiWebSocketClient is unreliable under MV3
+// (service worker can be suspended for up to 30s). Every heartbeat we:
+//   1. keep live connections warm via ping
+//   2. re-scan the port range so newly-started MCP servers get picked up
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'heartbeat') {
     if (!wsClient) {
       initialize();
-    } else if (wsClient.isConnected()) {
-      // Send ping to all connected servers
-      for (const port of wsClient.getConnectedPorts()) {
-        wsClient.send(JSON.stringify({ type: 'ping' }), port);
-      }
+      return;
     }
+    for (const port of wsClient.getConnectedPorts()) {
+      wsClient.send(JSON.stringify({ type: 'ping' }), port);
+    }
+    wsClient.scanPorts();
   }
 });
 
@@ -79,7 +108,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         ports: wsClient?.getConnectedPorts() ?? [],
       });
     }, 4000);
-    return true; // Async response
+    return true;
   }
 });
 
@@ -91,5 +120,4 @@ chrome.runtime.onStartup.addListener(() => {
   console.log('AlienMcp extension startup');
 });
 
-// Single initialization point
 initialize();

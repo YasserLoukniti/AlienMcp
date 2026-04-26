@@ -11,6 +11,7 @@ export function registerTabsTool(server: McpServer, bridge: Bridge): void {
         action: z.enum(['list', 'create', 'close', 'activate']).describe('Tab action'),
         url: z.string().optional().describe('URL for new tab (create action)'),
         tabId: z.number().optional().describe('Tab ID (for close/activate)'),
+        active: z.boolean().optional().describe('For create: open in foreground (default: true). Pass false to open a background tab without stealing focus — useful for headless automation.'),
       },
     },
     async (args) => {

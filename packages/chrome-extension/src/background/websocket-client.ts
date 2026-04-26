@@ -10,11 +10,30 @@ interface Connection {
   connected: boolean;
 }
 
+function detectBrowser(): { browser: string; version?: string } {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  let match: RegExpMatchArray | null;
+  if ((match = ua.match(/OPR\/(\S+)/)) || (match = ua.match(/Opera\/(\S+)/))) {
+    return { browser: 'opera', version: match[1] };
+  }
+  if ((match = ua.match(/Edg\/(\S+)/))) {
+    return { browser: 'edge', version: match[1] };
+  }
+  if ((match = ua.match(/Firefox\/(\S+)/))) {
+    return { browser: 'firefox', version: match[1] };
+  }
+  if ((match = ua.match(/Chrome\/(\S+)/))) {
+    return { browser: 'chrome', version: match[1] };
+  }
+  return { browser: 'unknown' };
+}
+
 export class MultiWebSocketClient {
   private connections = new Map<number, Connection>();
   private handlers: MessageHandler[] = [];
   private scanTimer: ReturnType<typeof setInterval> | null = null;
   private _intentionalClose = false;
+  private identity = detectBrowser();
 
   connect(): void {
     this._intentionalClose = false;
@@ -22,7 +41,13 @@ export class MultiWebSocketClient {
     this.scanTimer = setInterval(() => this.scanPorts(), SCAN_INTERVAL);
   }
 
-  private scanPorts(): void {
+  /**
+   * Scan all ports in the range and open a WebSocket to any that accepts.
+   * Public so the service worker can trigger a re-scan on alarm wake-up —
+   * MV3 suspension freezes the setInterval, so new MCP servers spawned while
+   * the SW is idle stay invisible until the next scan trigger.
+   */
+  scanPorts(): void {
     for (let port = BASE_PORT; port <= MAX_PORT; port++) {
       if (this.connections.has(port)) continue;
       this.tryConnect(port);
@@ -33,7 +58,6 @@ export class MultiWebSocketClient {
     try {
       const ws = new WebSocket(`ws://localhost:${port}`);
 
-      // Fast timeout for port scanning
       const connectTimeout = setTimeout(() => {
         ws.close();
       }, 2000);
@@ -43,6 +67,16 @@ export class MultiWebSocketClient {
         const conn: Connection = { ws, port, connected: true };
         this.connections.set(port, conn);
         console.log(`AlienMcp: Connected to port ${port} (${this.connectedCount()} sessions)`);
+
+        try {
+          ws.send(JSON.stringify({
+            type: 'hello',
+            browser: this.identity.browser,
+            version: this.identity.version,
+          }));
+        } catch (err) {
+          console.warn('AlienMcp: failed to send hello', err);
+        }
       };
 
       ws.onmessage = (event) => {
@@ -62,7 +96,6 @@ export class MultiWebSocketClient {
 
       ws.onerror = () => {
         clearTimeout(connectTimeout);
-        // Silently ignore — port is not active
       };
     } catch {
       // Ignore connection errors during scanning
@@ -90,6 +123,10 @@ export class MultiWebSocketClient {
 
   getConnectedPorts(): number[] {
     return Array.from(this.connections.keys());
+  }
+
+  getIdentity(): { browser: string; version?: string } {
+    return this.identity;
   }
 
   disconnect(): void {

@@ -20,7 +20,7 @@ export async function handleNetwork(args: Record<string, unknown>): Promise<{
   const action = args.action as 'start' | 'stop' | 'getRequests';
   const filter = args.filter as { urlPattern?: string; method?: string; type?: string } | undefined;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   switch (action) {
     case 'start': {

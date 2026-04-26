@@ -12,7 +12,7 @@ export async function handleModifyDom(args: Record<string, unknown>): Promise<{
   if (!selector) throw new Error('Selector is required');
   if (!action) throw new Error('Action is required');
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },

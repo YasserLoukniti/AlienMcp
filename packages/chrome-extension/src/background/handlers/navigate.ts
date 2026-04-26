@@ -10,7 +10,7 @@ export async function handleNavigate(args: Record<string, unknown>): Promise<{
 
   const waitForLoad = args.waitForLoad !== false;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   await chrome.tabs.update(tabId, { url });
 
   if (waitForLoad) {

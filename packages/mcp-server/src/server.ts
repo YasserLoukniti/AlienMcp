@@ -21,6 +21,8 @@ import { registerCookiesTool } from './tools/cookies.js';
 import { registerStorageTool } from './tools/storage.js';
 import { registerPdfTool } from './tools/pdf.js';
 import { registerEmulateTool } from './tools/emulate.js';
+import { registerSessionTool } from './tools/session.js';
+import { registerBrowserTool } from './tools/browser.js';
 
 export function createServer(bridge: Bridge): McpServer {
   const server = new McpServer({
@@ -48,6 +50,8 @@ export function createServer(bridge: Bridge): McpServer {
   registerStorageTool(server, bridge);
   registerPdfTool(server, bridge);
   registerEmulateTool(server, bridge);
+  registerSessionTool(server, bridge);
+  registerBrowserTool(server, bridge);
 
   return server;
 }

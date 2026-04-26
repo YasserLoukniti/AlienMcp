@@ -1,14 +1,14 @@
 import { getGroupTabs, getActiveGroupTab, getGroupId } from './group-utils';
 
-export async function handleContext(): Promise<{
+export async function handleContext(args: Record<string, unknown> = {}): Promise<{
   activeTab: { id: number; url: string; title: string; favIconUrl: string };
   groupTabs: Array<{ id: number; url: string; title: string; active: boolean }>;
   tabCount: number;
   hasGroup: boolean;
 }> {
-  const activeTab = await getActiveGroupTab();
-  const groupTabs = await getGroupTabs();
-  const groupId = await getGroupId();
+  const activeTab = await getActiveGroupTab(args);
+  const groupTabs = await getGroupTabs(args);
+  const groupId = await getGroupId(args);
 
   return {
     activeTab: {

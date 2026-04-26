@@ -17,7 +17,7 @@ export async function handleConsole(args: Record<string, unknown>): Promise<{
   const action = args.action as 'start' | 'stop' | 'getMessages';
   const level = (args.level as string) || 'all';
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   switch (action) {
     case 'start': {

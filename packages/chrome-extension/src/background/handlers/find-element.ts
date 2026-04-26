@@ -15,7 +15,7 @@ export async function handleFindElement(args: Record<string, unknown>): Promise<
   const role = args.role as string | undefined;
   const limit = (args.limit as number) || 20;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },

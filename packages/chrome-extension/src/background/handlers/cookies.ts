@@ -7,7 +7,7 @@ export async function handleCookies(args: Record<string, unknown>): Promise<{
 }> {
   const action = (args.action as 'get' | 'getAll' | 'set' | 'delete') || 'getAll';
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const tab = await chrome.tabs.get(tabId);
   const url = (args.url as string) || tab.url || '';
 

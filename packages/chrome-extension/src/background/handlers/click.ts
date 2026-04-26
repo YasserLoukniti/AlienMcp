@@ -9,7 +9,7 @@ export async function handleClick(args: Record<string, unknown>): Promise<{
   const x = args.x as number | undefined;
   const y = args.y as number | undefined;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   if (selector) {
     const results = await chrome.scripting.executeScript({

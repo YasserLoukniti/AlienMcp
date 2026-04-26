@@ -11,7 +11,7 @@ export async function handleStorage(args: Record<string, unknown>): Promise<{
   const key = args.key as string | undefined;
   const value = args.value;
 
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
 
   const results = await chrome.scripting.executeScript({
     target: { tabId },

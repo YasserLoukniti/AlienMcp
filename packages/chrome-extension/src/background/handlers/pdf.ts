@@ -5,7 +5,7 @@ export async function handlePdf(args: Record<string, unknown>): Promise<{
   data: string;
   pageCount: number;
 }> {
-  const tabId = await resolveTabId(args.tabId as number | undefined);
+  const tabId = await resolveTabId(args);
   const landscape = (args.landscape as boolean) || false;
   const printBackground = (args.printBackground as boolean) ?? true;
   const scale = (args.scale as number) || 1;

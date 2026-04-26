@@ -21,6 +21,18 @@ interface PendingRequest {
   resolve: (data: unknown) => void;
   reject: (error: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  targetBrowser: string;
+}
+
+export interface ClientInfo {
+  browser: string;
+  version?: string;
+  connectedAt: number;
+}
+
+interface ClientEntry {
+  ws: WebSocket;
+  info: ClientInfo;
 }
 
 async function findFreePort(base: number, max: number): Promise<number> {
@@ -40,16 +52,20 @@ async function findFreePort(base: number, max: number): Promise<number> {
 
 export class Bridge {
   private wss: WebSocketServer | null = null;
-  private client: WebSocket | null = null;
+  private clients = new Map<WebSocket, ClientInfo>();
   private pendingRequests = new Map<string, PendingRequest>();
   private port: number;
   private actualPort: number | null = null;
   private timeout: number;
-  private _connected = false;
+  private sessionId: string;
+  private label: string;
+  private selectedBrowser: string | null = null;
 
   constructor(port = BASE_PORT, timeout = 30000) {
     this.port = port;
     this.timeout = timeout;
+    this.sessionId = uuidv4();
+    this.label = this.sessionId.slice(0, 8);
   }
 
   async start(): Promise<void> {
@@ -61,6 +77,7 @@ export class Bridge {
 
       this.wss.on('listening', () => {
         console.error(`Bridge WebSocket server listening on ws://localhost:${this.actualPort}`);
+        console.error(`Session: ${this.sessionId} (label: ${this.label})`);
         resolve();
       });
 
@@ -70,22 +87,36 @@ export class Bridge {
       });
 
       this.wss.on('connection', (ws) => {
-        console.error('Chrome extension connected to bridge');
+        const entry: ClientInfo = {
+          browser: 'unknown',
+          connectedAt: Date.now(),
+        };
+        this.clients.set(ws, entry);
+        console.error(`Client connected (${this.clients.size} total)`);
 
-        // Only keep one client (the extension)
-        if (this.client) {
-          this.client.close();
+        // Send our hello with session metadata
+        try {
+          ws.send(JSON.stringify({
+            type: 'hello',
+            sessionId: this.sessionId,
+            label: this.label,
+          }));
+        } catch (err) {
+          console.error('Failed to send hello:', err);
         }
-
-        this.client = ws;
-        this._connected = true;
 
         ws.on('message', (data) => {
           try {
             const message = JSON.parse(data.toString());
 
-            // Ignore pings
             if (message.type === 'ping') return;
+
+            if (message.type === 'hello') {
+              entry.browser = typeof message.browser === 'string' ? message.browser : 'unknown';
+              entry.version = typeof message.version === 'string' ? message.version : undefined;
+              console.error(`Client identified as ${entry.browser}${entry.version ? ' ' + entry.version : ''}`);
+              return;
+            }
 
             const response: BridgeResponse = message;
             this.handleResponse(response);
@@ -95,10 +126,12 @@ export class Bridge {
         });
 
         ws.on('close', () => {
-          console.error('Chrome extension disconnected');
-          this._connected = false;
-          this.client = null;
-          this.rejectAllPending('Chrome extension disconnected');
+          const info = this.clients.get(ws);
+          this.clients.delete(ws);
+          console.error(`Client disconnected (${info?.browser ?? 'unknown'}, ${this.clients.size} remaining)`);
+          if (this.clients.size === 0) {
+            this.rejectAllPending('All clients disconnected');
+          }
         });
 
         ws.on('error', (err) => {
@@ -112,10 +145,67 @@ export class Bridge {
     return this.actualPort;
   }
 
-  async send(command: string, args: Record<string, unknown> = {}): Promise<unknown> {
-    if (!this.client || !this._connected) {
-      throw new Error('Chrome extension not connected. Make sure the AlienMcp extension is installed and active.');
+  getSessionId(): string {
+    return this.sessionId;
+  }
+
+  getLabel(): string {
+    return this.label;
+  }
+
+  setLabel(label: string): void {
+    const trimmed = label.trim();
+    if (!trimmed) throw new Error('Label cannot be empty');
+    this.label = trimmed;
+    const msg = JSON.stringify({ type: 'relabel', sessionId: this.sessionId, label: this.label });
+    for (const [ws] of this.clients) {
+      try { ws.send(msg); } catch { /* ignore */ }
     }
+  }
+
+  getClients(): ClientInfo[] {
+    return Array.from(this.clients.values());
+  }
+
+  getSelectedBrowser(): string | null {
+    return this.selectedBrowser;
+  }
+
+  selectBrowser(browser: string): boolean {
+    const match = Array.from(this.clients.values()).find((c) => c.browser === browser);
+    if (!match) return false;
+    this.selectedBrowser = browser;
+    return true;
+  }
+
+  clearSelection(): void {
+    this.selectedBrowser = null;
+  }
+
+  private resolveTarget(): { ws: WebSocket; browser: string } {
+    if (this.clients.size === 0) {
+      throw new Error('No browser extension connected. Make sure the AlienMcp extension is installed and active.');
+    }
+
+    if (this.selectedBrowser) {
+      const entry = Array.from(this.clients.entries()).find(([, info]) => info.browser === this.selectedBrowser);
+      if (!entry) {
+        throw new Error(`Selected browser "${this.selectedBrowser}" is no longer connected. Call alien_browser with action "list" to see available browsers.`);
+      }
+      return { ws: entry[0], browser: entry[1].browser };
+    }
+
+    if (this.clients.size === 1) {
+      const [[ws, info]] = Array.from(this.clients.entries());
+      return { ws, browser: info.browser };
+    }
+
+    const browsers = Array.from(this.clients.values()).map((c) => c.browser).join(', ');
+    throw new Error(`Multiple browsers connected (${browsers}). Call alien_browser with action "use" to pick one.`);
+  }
+
+  async send(command: string, args: Record<string, unknown> = {}): Promise<unknown> {
+    const { ws, browser } = this.resolveTarget();
 
     const id = uuidv4();
     const request: BridgeRequest = { id, command, args };
@@ -126,8 +216,8 @@ export class Bridge {
         reject(new Error(`Command "${command}" timed out after ${this.timeout}ms`));
       }, this.timeout);
 
-      this.pendingRequests.set(id, { resolve, reject, timer });
-      this.client!.send(JSON.stringify(request));
+      this.pendingRequests.set(id, { resolve, reject, timer, targetBrowser: browser });
+      ws.send(JSON.stringify(request));
     });
   }
 
@@ -154,19 +244,18 @@ export class Bridge {
   }
 
   isConnected(): boolean {
-    return this._connected;
+    return this.clients.size > 0;
   }
 
   stop(): void {
     this.rejectAllPending('Bridge closing');
-    if (this.client) {
-      this.client.close();
-      this.client = null;
+    for (const [ws] of this.clients) {
+      try { ws.close(); } catch { /* ignore */ }
     }
+    this.clients.clear();
     if (this.wss) {
       this.wss.close();
       this.wss = null;
     }
-    this._connected = false;
   }
 }
