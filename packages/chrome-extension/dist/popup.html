@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlienMcp</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="logo">👽</span>
+      <h1>AlienMcp</h1>
+      <span class="badge" id="group-count">0</span>
+      <span class="version">v1.0.0</span>
+    </div>
+    <div class="status-row">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Checking...</span>
+      <button id="add-tab-btn" class="btn-action" title="Add current tab to group">+ Add tab</button>
+      <button id="reconnect-btn" class="btn-small">Reconnect</button>
+    </div>
+    <div class="tabs-list" id="tabs-list"></div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
