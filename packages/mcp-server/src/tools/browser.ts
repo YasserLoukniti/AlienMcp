@@ -22,10 +22,12 @@ export function registerBrowserTool(server: McpServer, bridge: Bridge): void {
           };
         }
         const selected = bridge.getSelectedBrowser();
+        // `c.label` is the unique routing key — equals `c.browser` when a
+        // single client of that kind is connected, otherwise `chrome#xxxx`.
         const lines = clients.map((c) => {
-          const marker = c.browser === selected ? '>' : ' ';
+          const marker = c.label === selected || c.browser === selected ? '>' : ' ';
           const ver = c.version ? ` ${c.version}` : '';
-          return `${marker} ${c.browser}${ver}`;
+          return `${marker} ${c.label}${ver}`;
         });
         return {
           content: [
@@ -41,7 +43,7 @@ export function registerBrowserTool(server: McpServer, bridge: Bridge): void {
         if (!args.browser) throw new Error('browser is required when action is "use"');
         const ok = bridge.selectBrowser(args.browser);
         if (!ok) {
-          const available = bridge.getClients().map((c) => c.browser).join(', ') || 'none';
+          const available = bridge.getClients().map((c) => c.label).join(', ') || 'none';
           throw new Error(`Browser "${args.browser}" is not connected. Available: ${available}`);
         }
         return {

@@ -12,12 +12,76 @@ export async function handleClick(args: Record<string, unknown>): Promise<{
   const tabId = await resolveTabId(args);
 
   if (selector) {
+    // Caller can pass `waitMs` to poll for the element rather than fail
+    // immediately when it's not yet in the DOM (e.g. SSR → hydration race).
+    // Default 0 = fail-fast, matching the historical behaviour.
+    const waitMs = typeof args.waitMs === 'number' ? args.waitMs : 0;
+
     const results = await chrome.scripting.executeScript({
       target: { tabId },
-      func: (sel: string) => {
-        const el = document.querySelector(sel);
+      func: async (sel: string, deadline: number) => {
+        function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
+        let el: Element | null = null;
+        const stop = Date.now() + deadline;
+        do {
+          el = document.querySelector(sel);
+          if (el) break;
+          if (deadline === 0) break;
+          await sleep(100);
+        } while (Date.now() < stop);
+
         if (!el) return { success: false, element: null };
-        (el as HTMLElement).click();
+
+        // Helper: dispatch a realistic mouse sequence in addition to the
+        // native .click(). React handlers may listen to mouseup or
+        // pointer events (Framer Motion, Radix, React Aria) rather than
+        // the bare click event.
+        const fire = (target: Element) => {
+          try { (target as HTMLElement).click(); } catch (_e) { /* noop */ }
+          try {
+            const rect = target.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const mk = (type: string) => new MouseEvent(type, {
+              bubbles: true, cancelable: true, view: window, button: 0,
+              clientX: cx, clientY: cy,
+            });
+            target.dispatchEvent(mk('pointerdown'));
+            target.dispatchEvent(mk('mousedown'));
+            target.dispatchEvent(mk('pointerup'));
+            target.dispatchEvent(mk('mouseup'));
+            target.dispatchEvent(mk('click'));
+          } catch (_e) { /* noop */ }
+        };
+
+        const isToggle = el.tagName === 'INPUT'
+          && ((el as HTMLInputElement).type === 'checkbox' || (el as HTMLInputElement).type === 'radio');
+
+        // For checkboxes / radios, capture the prior `checked` state so we
+        // can detect when the click was swallowed (visually-hidden inputs
+        // wrapped in a styled label, common pattern in Lever/Greenhouse/
+        // custom React libs). When the state didn't flip, retry on the
+        // wrapping <label> — clicking the label is what the browser does
+        // for a real user click on the styled box.
+        const wasChecked = isToggle ? (el as HTMLInputElement).checked : null;
+
+        fire(el);
+
+        if (isToggle) {
+          // Give React a tick to commit the state change.
+          await sleep(50);
+          const stillSame = (el as HTMLInputElement).checked === wasChecked;
+          if (stillSame) {
+            const wrapLabel = el.closest('label')
+              ?? (el.id ? document.querySelector(`label[for="${el.id}"]`) : null);
+            if (wrapLabel) {
+              fire(wrapLabel);
+              await sleep(50);
+            }
+          }
+        }
+
         return {
           success: true,
           element: {
@@ -26,7 +90,7 @@ export async function handleClick(args: Record<string, unknown>): Promise<{
           },
         };
       },
-      args: [selector],
+      args: [selector, waitMs],
     });
 
     const result = results[0]?.result as { success: boolean; element: { tag: string; text: string } | null } | undefined;

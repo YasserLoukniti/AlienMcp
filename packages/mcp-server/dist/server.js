@@ -23,6 +23,7 @@ import { registerPdfTool } from './tools/pdf.js';
 import { registerEmulateTool } from './tools/emulate.js';
 import { registerSessionTool } from './tools/session.js';
 import { registerBrowserTool } from './tools/browser.js';
+import { registerAttachFileTool } from './tools/attach-file.js';
 export function createServer(bridge) {
     const server = new McpServer({
         name: 'alien-mcp',
@@ -50,6 +51,7 @@ export function createServer(bridge) {
     registerEmulateTool(server, bridge);
     registerSessionTool(server, bridge);
     registerBrowserTool(server, bridge);
+    registerAttachFileTool(server, bridge);
     return server;
 }
 export async function startServer(options = {}) {

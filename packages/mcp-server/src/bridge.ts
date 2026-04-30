@@ -27,7 +27,23 @@ interface PendingRequest {
 export interface ClientInfo {
   browser: string;
   version?: string;
+  /** Stable per-installation id reported by the extension (chrome.storage.local).
+   *  Lets us tell apart two extensions of the same browser kind, e.g. one
+   *  AlienMcp install per Chrome profile. */
+  instanceId?: string;
   connectedAt: number;
+}
+
+/** Build the unique label used for routing. When no collision exists, this is
+ *  just `browser` (backwards-compatible). When two clients share the same
+ *  `browser` string, append `#<8 chars of instanceId>` so callers can pick
+ *  one explicitly via `alien_browser use chrome#a1b2c3d4`. */
+function uniqueLabelFor(info: ClientInfo, all: ClientInfo[]): string {
+  const sameKind = all.filter((c) => c.browser === info.browser);
+  if (sameKind.length <= 1) return info.browser;
+  const id = info.instanceId ?? '';
+  const suffix = id ? id.replace(/[^a-z0-9]/gi, '').slice(0, 8) : info.connectedAt.toString(36).slice(-6);
+  return `${info.browser}#${suffix || 'unknown'}`;
 }
 
 interface ClientEntry {
@@ -114,7 +130,8 @@ export class Bridge {
             if (message.type === 'hello') {
               entry.browser = typeof message.browser === 'string' ? message.browser : 'unknown';
               entry.version = typeof message.version === 'string' ? message.version : undefined;
-              console.error(`Client identified as ${entry.browser}${entry.version ? ' ' + entry.version : ''}`);
+              entry.instanceId = typeof message.instanceId === 'string' ? message.instanceId : undefined;
+              console.error(`Client identified as ${entry.browser}${entry.version ? ' ' + entry.version : ''}${entry.instanceId ? ` [${entry.instanceId.slice(0, 8)}]` : ''}`);
               return;
             }
 
@@ -163,19 +180,33 @@ export class Bridge {
     }
   }
 
-  getClients(): ClientInfo[] {
-    return Array.from(this.clients.values());
+  /** Augment ClientInfo with the unique routing label (`browser` or
+   *  `browser#xxxxxxxx` when multiple clients share the same kind). */
+  getClients(): Array<ClientInfo & { label: string }> {
+    const all = Array.from(this.clients.values());
+    return all.map((info) => ({ ...info, label: uniqueLabelFor(info, all) }));
   }
 
   getSelectedBrowser(): string | null {
     return this.selectedBrowser;
   }
 
+  /** Match by full label first (e.g. "chrome#a1b2c3d4"), then fall back to the
+   *  bare `browser` kind. The bare-kind match keeps the legacy single-Chrome
+   *  workflow working unchanged. */
   selectBrowser(browser: string): boolean {
-    const match = Array.from(this.clients.values()).find((c) => c.browser === browser);
-    if (!match) return false;
-    this.selectedBrowser = browser;
-    return true;
+    const all = Array.from(this.clients.values());
+    const byLabel = all.find((c) => uniqueLabelFor(c, all) === browser);
+    if (byLabel) {
+      this.selectedBrowser = browser;
+      return true;
+    }
+    const byKind = all.find((c) => c.browser === browser);
+    if (byKind) {
+      this.selectedBrowser = browser;
+      return true;
+    }
+    return false;
   }
 
   clearSelection(): void {
@@ -187,21 +218,27 @@ export class Bridge {
       throw new Error('No browser extension connected. Make sure the AlienMcp extension is installed and active.');
     }
 
+    const entries = Array.from(this.clients.entries());
+    const all = entries.map(([, info]) => info);
+
     if (this.selectedBrowser) {
-      const entry = Array.from(this.clients.entries()).find(([, info]) => info.browser === this.selectedBrowser);
-      if (!entry) {
+      // Prefer label match (unique); fall back to first bare-kind match for
+      // backwards compatibility with old client code that only knows "chrome".
+      const byLabel = entries.find(([, info]) => uniqueLabelFor(info, all) === this.selectedBrowser);
+      const byKind = byLabel ?? entries.find(([, info]) => info.browser === this.selectedBrowser);
+      if (!byKind) {
         throw new Error(`Selected browser "${this.selectedBrowser}" is no longer connected. Call alien_browser with action "list" to see available browsers.`);
       }
-      return { ws: entry[0], browser: entry[1].browser };
+      return { ws: byKind[0], browser: uniqueLabelFor(byKind[1], all) };
     }
 
     if (this.clients.size === 1) {
-      const [[ws, info]] = Array.from(this.clients.entries());
-      return { ws, browser: info.browser };
+      const [ws, info] = entries[0];
+      return { ws, browser: uniqueLabelFor(info, all) };
     }
 
-    const browsers = Array.from(this.clients.values()).map((c) => c.browser).join(', ');
-    throw new Error(`Multiple browsers connected (${browsers}). Call alien_browser with action "use" to pick one.`);
+    const labels = all.map((c) => uniqueLabelFor(c, all)).join(', ');
+    throw new Error(`Multiple browsers connected (${labels}). Call alien_browser with action "use" to pick one.`);
   }
 
   async send(command: string, args: Record<string, unknown> = {}): Promise<unknown> {

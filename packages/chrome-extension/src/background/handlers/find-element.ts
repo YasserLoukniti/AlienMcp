@@ -54,10 +54,32 @@ export async function handleFindElement(args: Record<string, unknown>): Promise<
           const attr = el.attributes[a];
           attrs[attr.name] = attr.value;
         }
+        // Surface live properties that aren't reflected as HTML attributes.
+        // React-controlled inputs don't write `checked` / `value` back to
+        // the DOM, so reading the attribute is misleading. We add a `state`
+        // field with the live values so the agent can verify what actually
+        // happened after a fill / click.
+        const tag = el.tagName.toLowerCase();
+        const state: Record<string, unknown> = {};
+        if (tag === 'input') {
+          const inp = el as HTMLInputElement;
+          state.type = inp.type;
+          if (inp.type === 'checkbox' || inp.type === 'radio') {
+            state.checked = inp.checked;
+          } else {
+            state.value = inp.value || '';
+          }
+          state.disabled = inp.disabled;
+        } else if (tag === 'textarea') {
+          state.value = (el as HTMLTextAreaElement).value || '';
+        } else if (tag === 'select') {
+          state.value = (el as HTMLSelectElement).value;
+        }
         return {
-          tag: el.tagName.toLowerCase(),
+          tag,
           text: (el as HTMLElement).innerText?.slice(0, 200) || '',
           attributes: attrs,
+          state,
           rect: { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.round(rect.width), height: Math.round(rect.height) },
           index: i,
         };
@@ -70,6 +92,7 @@ export async function handleFindElement(args: Record<string, unknown>): Promise<
     tag: string;
     text: string;
     attributes: Record<string, string>;
+    state: Record<string, unknown>;
     rect: { x: number; y: number; width: number; height: number };
     index: number;
   }>;

@@ -10,7 +10,11 @@ export async function startHttpTransport(bridge, options) {
         exposedHeaders: ['Mcp-Session-Id'],
         allowedHeaders: ['Content-Type', 'Mcp-Session-Id'],
     }));
-    app.use(express.json());
+    // 50 MB cap. Default express.json() is 100 KB which kills any tool call
+    // that ships a base64-encoded file (CV PDF ~150 KB, screenshot ~1-3 MB,
+    // page HTML ~500 KB on heavy SPAs). 50 MB covers all real cases without
+    // opening up an obvious DoS vector — the daemon is bound to localhost.
+    app.use(express.json({ limit: '50mb' }));
     app.get('/health', (_req, res) => {
         res.json({
             status: 'ok',

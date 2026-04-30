@@ -3,6 +3,7 @@ type MessageHandler = (message: string, port: number) => void;
 const BASE_PORT = 7888;
 const MAX_PORT = 7899;
 const SCAN_INTERVAL = 3000;
+const INSTANCE_ID_KEY = 'alienmcp_instance_id';
 
 interface Connection {
   ws: WebSocket;
@@ -28,15 +29,59 @@ function detectBrowser(): { browser: string; version?: string } {
   return { browser: 'unknown' };
 }
 
+/**
+ * Stable per-installation identifier so the MCP server can distinguish two
+ * extension instances (different Chrome profiles / windows) that report the
+ * same `browser` string. Persisted in chrome.storage.local — survives SW
+ * restarts and Chrome updates, only resets when the user reinstalls the
+ * extension. Each profile has its own chrome.storage.local namespace, so
+ * two profiles will naturally generate two different ids.
+ */
+async function getOrCreateInstanceId(): Promise<string> {
+  try {
+    const stored = await chrome.storage.local.get(INSTANCE_ID_KEY);
+    const existing = stored[INSTANCE_ID_KEY];
+    if (typeof existing === 'string' && existing.length > 0) return existing;
+    // Fall back to a Math.random-based hex if crypto.randomUUID is unavailable.
+    const fresh = (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 10)}-${Math.random().toString(16).slice(2, 10)}`;
+    await chrome.storage.local.set({ [INSTANCE_ID_KEY]: fresh });
+    return fresh;
+  } catch {
+    // chrome.storage may not be available in unusual contexts (e.g. tests);
+    // a session-scoped id is still better than nothing.
+    return `tmp-${Math.random().toString(16).slice(2, 18)}`;
+  }
+}
+
 export class MultiWebSocketClient {
   private connections = new Map<number, Connection>();
   private handlers: MessageHandler[] = [];
   private scanTimer: ReturnType<typeof setInterval> | null = null;
   private _intentionalClose = false;
   private identity = detectBrowser();
+  private instanceId: string | null = null;
+  private instanceIdPromise: Promise<string> | null = null;
+
+  /** Resolve and cache the instance id. Idempotent. */
+  private async ensureInstanceId(): Promise<string> {
+    if (this.instanceId) return this.instanceId;
+    if (!this.instanceIdPromise) {
+      this.instanceIdPromise = getOrCreateInstanceId().then((id) => {
+        this.instanceId = id;
+        return id;
+      });
+    }
+    return this.instanceIdPromise;
+  }
 
   connect(): void {
     this._intentionalClose = false;
+    // Resolve the instance id eagerly so the first hello carries it. We
+    // don't gate scanning on this — if the id is still pending when a
+    // socket opens, sendHello() will await it before sending.
+    void this.ensureInstanceId();
     this.scanPorts();
     this.scanTimer = setInterval(() => this.scanPorts(), SCAN_INTERVAL);
   }
@@ -68,15 +113,21 @@ export class MultiWebSocketClient {
         this.connections.set(port, conn);
         console.log(`AlienMcp: Connected to port ${port} (${this.connectedCount()} sessions)`);
 
-        try {
-          ws.send(JSON.stringify({
-            type: 'hello',
-            browser: this.identity.browser,
-            version: this.identity.version,
-          }));
-        } catch (err) {
-          console.warn('AlienMcp: failed to send hello', err);
-        }
+        // Resolve instanceId before sending hello so the server can
+        // disambiguate this client from other extension instances reporting
+        // the same browser name (e.g. two Chrome profiles).
+        void this.ensureInstanceId().then((instanceId) => {
+          try {
+            ws.send(JSON.stringify({
+              type: 'hello',
+              browser: this.identity.browser,
+              version: this.identity.version,
+              instanceId,
+            }));
+          } catch (err) {
+            console.warn('AlienMcp: failed to send hello', err);
+          }
+        });
       };
 
       ws.onmessage = (event) => {

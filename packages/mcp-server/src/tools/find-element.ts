@@ -22,13 +22,22 @@ export function registerFindElementTool(server: McpServer, bridge: Bridge): void
           tag: string;
           text: string;
           attributes: Record<string, string>;
+          state?: Record<string, unknown>;
           rect: { x: number; y: number; width: number; height: number };
           index: number;
         }>;
       };
 
       const summary = result.elements
-        .map((el) => `[${el.index}] <${el.tag}> "${el.text.slice(0, 80)}" (${el.rect.x},${el.rect.y} ${el.rect.width}x${el.rect.height})`)
+        .map((el) => {
+          const stateBits: string[] = [];
+          const s = el.state ?? {};
+          if (typeof s.checked === 'boolean') stateBits.push(s.checked ? 'checked' : 'unchecked');
+          if (typeof s.value === 'string' && s.value.length > 0) stateBits.push(`value="${s.value.slice(0, 40)}"`);
+          if (s.disabled === true) stateBits.push('disabled');
+          const stateStr = stateBits.length > 0 ? ` [${stateBits.join(' · ')}]` : '';
+          return `[${el.index}] <${el.tag}> "${el.text.slice(0, 80)}"${stateStr} (${el.rect.x},${el.rect.y} ${el.rect.width}x${el.rect.height})`;
+        })
         .join('\n');
 
       return {
