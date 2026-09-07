@@ -6,18 +6,21 @@
  * a tab group; everything else sits plainly below it, outside. Mint is spent
  * only on that boundary and on the connection beacon, nowhere else, so the eye
  * always lands on what is in scope.
+ *
+ * The palette is the site's: deep space blue-black, with a thin scatter of
+ * stars behind the identity bar. Mint is the colour of the icon's eyes.
  */
 
 :root {
-  --ink: #14101f;
-  --raise: #1d1730;
-  --well: #221b38;
-  --edge: #322a46;
-  --text: #ece9f3;
-  --dim: #a79dbe;
-  --faint: #6f6688;
+  --void: #05070f;
+  --raise: #090d18;
+  --well: #0d1421;
+  --edge: #1c2638;
+  --text: #e8edf7;
+  --dim: #9aa5bd;
+  --faint: #6a7590;
   --mint: #7fe7c4;
-  --mint-deep: #2ed39b;
+  --mint-deep: #3fd3a3;
   --warn: #f0b866;
   --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
@@ -32,11 +35,11 @@ body {
   font-size: 13px;
   line-height: 1.45;
   color: var(--text);
-  background: var(--ink);
+  background: var(--void);
   -webkit-font-smoothing: antialiased;
 }
 
-.app { display: flex; flex-direction: column; max-height: 560px; }
+.app { position: relative; display: flex; flex-direction: column; max-height: 560px; }
 
 /* ---------- identity bar ---------- */
 

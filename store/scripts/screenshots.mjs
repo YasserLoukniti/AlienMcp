@@ -121,7 +121,7 @@ const shell = (title, css, body) => `<!doctype html>
 <link href="${FONTS}" rel="stylesheet">
 <style>
   :root {
-    --ink:#14101f; --surface:#faf9fc; --mint:#7fe7c4; --mint-deep:#0e9e76; --muted:#6c6382;
+    --ink:#05070f; --surface:#f7f7fb; --mint:#7fe7c4; --mint-deep:#0b8c68; --muted:#6a7590;
     --display:'Bricolage Grotesque',system-ui,sans-serif;
     --body:'Public Sans',system-ui,sans-serif;
     --mono:'DM Mono',ui-monospace,monospace;
@@ -131,7 +131,7 @@ const shell = (title, css, body) => `<!doctype html>
   body{font-family:var(--body);background:var(--surface);color:var(--ink)}
 ${popupCss}
   .popup-frame{border-radius:12px;overflow:hidden;
-    box-shadow:0 28px 64px -14px rgba(20,16,31,.5), 0 0 0 1px rgba(20,16,31,.09)}
+    box-shadow:0 28px 64px -14px rgba(0,0,0,.55), 0 0 0 1px rgba(5,7,15,.1)}
   .on-dark .popup-frame{box-shadow:0 28px 64px -14px #000, 0 0 0 1px rgba(255,255,255,.11)}
 ${css}
 </style></head><body>${body}</body></html>`;
@@ -152,7 +152,7 @@ shots.push({
   mock: chromeMock(),
   css: caption + `
     .stage{position:absolute;inset:0;
-      background:radial-gradient(900px 520px at 78% 46%, #efeaf8 0%, var(--surface) 62%)}
+      background:radial-gradient(900px 520px at 78% 46%, #e9edf4 0%, var(--surface) 62%)}
     .popup-frame{position:absolute;right:120px;top:50%;transform:translateY(-50%)}
   `,
   body: `<div class="stage">
@@ -184,16 +184,16 @@ shots.push({
     .box-label{position:absolute;top:-11px;left:26px;background:var(--ink);padding:0 10px;
       font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--mint)}
     .flow{display:flex;align-items:stretch;gap:0}
-    .node{flex:1;padding:26px 24px;border-radius:12px;background:#1d1730;
-      box-shadow:inset 0 0 0 1px #322a46}
+    .node{flex:1;padding:26px 24px;border-radius:12px;background:#101725;
+      box-shadow:inset 0 0 0 1px #1c2638}
     .node.end{background:rgba(127,231,196,.09);box-shadow:inset 0 0 0 1px rgba(127,231,196,.34)}
-    .node b{display:block;font-family:var(--display);font-size:19px;font-weight:700;color:#ece9f3}
-    .node span{display:block;margin-top:7px;font-size:14px;line-height:1.45;color:#a79dbe}
+    .node b{display:block;font-family:var(--display);font-size:19px;font-weight:700;color:#e8edf7}
+    .node span{display:block;margin-top:7px;font-size:14px;line-height:1.45;color:#9aa5bd}
     .hop{flex:none;width:120px;display:flex;flex-direction:column;align-items:center;
       justify-content:center;gap:8px}
-    .hop i{display:block;width:100%;height:1px;background:#4a4066}
-    .hop em{font-family:var(--mono);font-size:12px;font-style:normal;color:#8b81a6}
-    .out{margin-top:30px;font-family:var(--mono);font-size:13px;color:#6f6688}
+    .hop i{display:block;width:100%;height:1px;background:#2b3548}
+    .hop em{font-family:var(--mono);font-size:12px;font-style:normal;color:#7d8aa3}
+    .out{margin-top:30px;font-family:var(--mono);font-size:13px;color:#6a7590}
   `,
   body: `<div class="stage">
     <div class="eyebrow">Runs on your machine</div>
@@ -236,7 +236,7 @@ shots.push({
     .col h3{font-family:var(--display);font-size:16px;font-weight:700;padding-bottom:11px;
       border-bottom:2px solid var(--ink)}
     .col .gloss{margin:14px 0 28px;font-size:14.5px;line-height:1.5;color:var(--muted)}
-    .col li{list-style:none;font-family:var(--mono);font-size:15px;line-height:2.75;color:#3b3350}
+    .col li{list-style:none;font-family:var(--mono);font-size:15px;line-height:2.75;color:#333c4d}
     .col li::before{content:'';display:inline-block;width:5px;height:5px;border-radius:50%;
       background:var(--mint-deep);margin-right:12px;vertical-align:middle}
   `,
