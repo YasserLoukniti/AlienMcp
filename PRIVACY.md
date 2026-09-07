@@ -1,6 +1,6 @@
 # Privacy Policy - AlienMcp
 
-**Last updated:** April 2, 2026
+**Last updated:** September 7, 2026
 
 ## Overview
 
@@ -35,17 +35,21 @@ The extension requires the following Chrome permissions:
 
 | Permission | Why |
 |---|---|
-| `tabs` | List and manage browser tabs |
-| `activeTab` | Access the current active tab |
-| `scripting` | Execute scripts for DOM interaction |
-| `debugger` | Chrome DevTools Protocol for screenshots, JS execution, keyboard input, network monitoring |
-| `webRequest` | Monitor network requests |
-| `cookies` | Read and manage cookies |
-| `storage` | Extension internal storage |
-| `offscreen` | Keep WebSocket connection alive |
-| `alarms` | Periodic keepalive for service worker |
-| `tabGroups` | Manage tab groups for scoping |
-| `<all_urls>` | Operate on any webpage |
+| `tabs` | List, open, activate and close tabs, and report a tab's URL and title |
+| `scripting` | Run the extension's own bundled functions in a page to click, fill, read or scroll |
+| `debugger` | Chrome DevTools Protocol, for screenshots, PDF export, console capture, network inspection and trusted keyboard/mouse input |
+| `cookies` | Read or clear a cookie when you ask whether you are still signed in to a site |
+| `storage` | The extension's own connection state (last known local port, instance id) |
+| `alarms` | Keepalive so the Manifest V3 service worker does not drop the local connection |
+| `tabGroups` | Scope every tool to a tab group you create, so tabs outside it are invisible |
+| `<all_urls>` | Operate on whichever site you point your assistant at |
+
+The extension declares no content scripts, so it injects nothing into pages you
+are merely browsing. Code runs in a page only when your local MCP client issues
+a tool call for that tab.
+
+As of version 1.2.0 the `activeTab`, `webRequest` and `offscreen` permissions
+have been removed: they were declared but never used.
 
 ## Data Retention
 

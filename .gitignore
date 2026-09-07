@@ -6,3 +6,7 @@ node_modules/
 Thumbs.db
 *.log
 PLAN.md
+
+# Chrome Web Store credentials and build output
+store/.env
+store/dist/

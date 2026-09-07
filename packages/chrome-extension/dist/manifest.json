@@ -1,15 +1,12 @@
 {
   "manifest_version": 3,
   "name": "AlienMcp - Browser Automation for AI",
-  "version": "1.1.0",
-  "description": "Connect AI agents to your browser. Screenshot, click, type, scroll, read pages, fill forms, watch network via MCP.",
+  "version": "1.2.0",
+  "description": "Let your local AI assistant drive your browser: read pages, click, fill forms, screenshot. Runs entirely on your machine.",
   "permissions": [
-    "activeTab",
     "tabs",
     "scripting",
     "debugger",
-    "webRequest",
-    "offscreen",
     "storage",
     "alarms",
     "tabGroups",
@@ -22,14 +19,6 @@
     "service_worker": "service-worker.js",
     "type": "module"
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content-script.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    }
-  ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "AlienMcp"
