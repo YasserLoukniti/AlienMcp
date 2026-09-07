@@ -1,8 +1,9 @@
 # Notes for the reviewer
 
-Paste this into **Submit for review → "Notes for the reviewer"** on the Chrome Web
-Store Developer Dashboard. Keep it as one block; do not shorten the testing
-instructions, they are what stops a "functionality not working" rejection.
+This is the full reasoning, kept as the record. It does NOT go in the dashboard
+as one block: the Test instructions field caps at 500 characters. See
+`dashboard-fields.md` for the three paste-ready extracts and which field each one
+belongs in. Send this file itself only if a reviewer replies and asks.
 
 ---
 

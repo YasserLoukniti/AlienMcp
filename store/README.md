@@ -88,10 +88,14 @@ manual. The steps, in order:
 5. **Distribution tab**: set visibility to **Unlisted**. The extension is
    installable by anyone holding the link, but does not appear in search or in
    the storefront. Same review, smaller surface.
-6. **Submit for review**, pasting `reviewer-notes.md` into the reviewer notes
-   field. Do not skip this: an extension that does nothing without a local
-   server is a textbook "functionality not working" rejection, and the notes are
-   what prevent it.
+6. **Test instructions tab** (its own tab in the dashboard, next to Store
+   listing, Privacy practices and Distribution, not part of the submit dialog):
+   paste `reviewer-notes.md` there. Google marks this step optional, and for
+   most extensions it is. For this one it is the single most important field on
+   the dashboard: an extension that does nothing until a local MCP server is
+   listening is a textbook "functionality not working" rejection, and this is
+   where the harness link and the four testing steps live.
+7. **Submit for review.**
 
 ### Every submission after that: one command
 
