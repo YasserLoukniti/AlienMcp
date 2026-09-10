@@ -39,6 +39,10 @@ Unlike headless browser automation, AlienMcp controls **your actual Chrome tabs*
 
 ### 1. Install the Chrome Extension
 
+Add it from the [Chrome Web Store](https://chromewebstore.google.com/detail/alienmcp-browser-automati/dpjgfdpcgfifhjecpjcolbmadfkmmbeo). It updates itself from there.
+
+To run your own build instead (remove the store copy first, so only one extension connects):
+
 ```bash
 cd packages/chrome-extension
 npm install
